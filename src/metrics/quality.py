@@ -24,6 +24,7 @@ def compute_recall_at_k(
     Compute Recall@K - fraction of true neighbors found in top-k results.
 
     This is the PRIMARY metric used in ANN-Benchmarks.
+    Definition: (Relevant items in Top K) / (Total Relevant items in GT)
 
     Args:
         retrieved: Retrieved indices of shape (n_queries, k)
@@ -38,17 +39,23 @@ def compute_recall_at_k(
 
     for i in range(n_queries):
         retrieved_k = set(retrieved[i, :k])
-        true_neighbors = set(ground_truth[i, :k])
+        true_neighbors = set(ground_truth[i])
 
-        # Remove invalid indices
         retrieved_k.discard(-1)
         true_neighbors.discard(-1)
 
         if len(true_neighbors) == 0:
-            recalls.append(1.0)  # No ground truth to find
+            recalls.append(1.0)
         else:
             intersection = len(retrieved_k & true_neighbors)
-            recalls.append(intersection / len(true_neighbors))
+
+            # Standard Recall Definition: Intersection / Total Relevant
+            denominator = len(true_neighbors)
+
+            if denominator == 0:
+                recalls.append(0.0)
+            else:
+                recalls.append(intersection / denominator)
 
     return np.mean(recalls)
 
@@ -74,7 +81,9 @@ def compute_precision_at_k(
 
     for i in range(n_queries):
         retrieved_k = set(retrieved[i, :k])
-        true_neighbors = set(ground_truth[i])
+
+        # Precision also checks against the full set of known neighbors
+        true_neighbors = set(ground_truth[i])  # Checks against ALL 100 GT items
 
         retrieved_k.discard(-1)
         true_neighbors.discard(-1)
@@ -127,7 +136,7 @@ def compute_ndcg_at_k(
     retrieved: NDArray[np.int64],
     ground_truth: NDArray[np.int64],
     k: int,
-    relevance_scores: Optional[NDArray[np.float32]] = None,
+    relevance_scores: Optional[NDArray[np.float64]] = None,
 ) -> float:
     """
     Compute Normalized Discounted Cumulative Gain (NDCG@K).
@@ -141,7 +150,6 @@ def compute_ndcg_at_k(
         retrieved: Retrieved indices of shape (n_queries, k)
         ground_truth: True neighbor indices
         k: Number of results to consider
-        relevance_scores: Optional graded relevance (default: binary)
 
     Returns:
         Mean NDCG@K
@@ -150,20 +158,24 @@ def compute_ndcg_at_k(
     ndcg_scores = []
 
     for i in range(n_queries):
-        true_neighbors = set(ground_truth[i, :k])
-        true_neighbors.discard(-1)
+        # For NDCG, the ideal set is strictly the best K from ground truth
+        # But for 'dcg', we check if retrieved items are in the FULL ground truth
+        all_true_neighbors = set(ground_truth[i])
+        all_true_neighbors.discard(-1)
+
+        # IDCG considers the 'best possible' k items
+        ideal_neighbors_k = ground_truth[i, :k]
 
         # Compute DCG
         dcg = 0.0
         for rank, idx in enumerate(retrieved[i, :k], start=1):
-            if idx in true_neighbors:
-                # Binary relevance or graded
-                rel = 1.0 if relevance_scores is None else relevance_scores[i, rank - 1]
+            if idx in all_true_neighbors:
+                rel = 1.0
                 dcg += rel / np.log2(rank + 1)
 
         # Compute IDCG (ideal DCG)
         idcg = 0.0
-        for rank in range(1, min(k, len(true_neighbors)) + 1):
+        for rank in range(1, min(k, len(ideal_neighbors_k)) + 1):
             rel = 1.0
             idcg += rel / np.log2(rank + 1)
 
@@ -207,14 +219,18 @@ def compute_map_at_k(
 
         hits = 0
         precision_sum = 0.0
+        found_relevant = set()
 
-        for rank, idx in enumerate(retrieved[i, :k], start=1):
-            if idx in true_neighbors:
+        # We track `found_relevant` to ensure that each distinct relevant item contributes at most once to Average Precision.
+        for rank, idx in enumerate(retrieved[i, :k], start=1): # Iterate up to k
+            if idx in true_neighbors and idx not in found_relevant:
                 hits += 1
-                precision_at_rank = hits / rank
-                precision_sum += precision_at_rank
+                precision_sum += hits / rank
+                found_relevant.add(idx)
 
-        # Average over relevant items
+        # Normalize by the maximum possible number of distinct relevant items that can appear in the top-k results, i.e.,
+        # min(len(true_neighbors), k).
+        # The duplicate handling above (via `found_relevant`) ensures each relevant item contributes at most once to the precision sum.
         num_relevant = min(len(true_neighbors), k)
         if num_relevant > 0:
             average_precisions.append(precision_sum / num_relevant)
