@@ -65,8 +65,8 @@ This framework provides a comprehensive set of metrics to evaluate database perf
 
 ```bash
 # Clone repository and navigate into it
-git clone https://github.com/your-repo/RAGdbEval.git
-cd RAGdbEval
+git clone https://github.com/your-repo/VectorDB-Bench.git
+cd VectorDB-Bench
 
 # Create and activate a virtual environment
 python -m venv .venv
@@ -186,7 +186,7 @@ The framework generates a comprehensive set of plots for each metric, comparing 
 ## Project Structure
 
 ```
-RAGdbEval/
+VectorDB-Bench/
 ├── config/                 # All YAML configuration files
 │   ├── default.yaml        # Main configuration (active db/dataset, runs)
 │   └── databases/          # Database-specific index and search parameters
@@ -277,11 +277,11 @@ This framework follows established benchmarking methodologies:
 If you use this framework in your research, please cite:
 
 ```bibtex
-@software{RAGdbEval_2024,
-  title={RAGdbEval: A Comprehensive Benchmarking Framework for Vector Databases},
+@software{VectorDB_Bench_2024,
+  title={VectorDB-Bench: A Comprehensive Benchmarking Framework for Vector Databases},
   author={Your Name/Team},
   year={2024},
-  url={https://github.com/your-repo/RAGdbEval}
+  url={https://github.com/your-repo/VectorDB-Bench}
 }
 ```
 
