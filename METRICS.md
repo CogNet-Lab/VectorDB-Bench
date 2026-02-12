@@ -1,4 +1,4 @@
-# Metric Definitions for RAGdbEval
+# Metric Definitions for VectorDB-Bench
 
 This document provides clear, technical definitions for the metrics used in this benchmark framework. Understanding these is crucial for correctly interpreting the results.
 
